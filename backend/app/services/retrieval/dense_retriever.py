@@ -25,10 +25,11 @@ class DenseRetriever:
 
     async def retrieve(
         self,
-        document_id: uuid.UUID,
-        query: Any,
+        document_id: Optional[uuid.UUID] = None,
+        query: Any = None,
         top_k: int = 10,
-        selected_text: Optional[str] = None
+        selected_text: Optional[str] = None,
+        document_ids: Optional[List[uuid.UUID]] = None,
     ) -> List[RetrievalResult]:
         if isinstance(query, list):
             query_vec = np.array(query, dtype=np.float32)
@@ -50,17 +51,21 @@ class DenseRetriever:
                 return []
             query_vec = np.array(query_embeddings[0], dtype=np.float32)
 
-        # 2. Fetch chunks scoped strictly to document_id
-        result = await self.db.execute(
-            select(DocumentChunk)
-            .where(DocumentChunk.document_id == document_id)
-        )
+        # 2. Fetch chunks scoped to document_ids or document_id
+        stmt = select(DocumentChunk)
+        if document_ids:
+            stmt = stmt.where(DocumentChunk.document_id.in_(document_ids))
+        elif document_id:
+            stmt = stmt.where(DocumentChunk.document_id == document_id)
+
+        result = await self.db.execute(stmt)
         all_chunks = list(result.scalars().all())
         chunks = [c for c in all_chunks if c.embedding is not None]
 
         if not chunks:
-            logger.warning(f"No chunks with embeddings found for document {document_id}")
+            logger.warning(f"No chunks with embeddings found for doc_scope={document_ids or document_id}")
             return []
+
 
         # 3. Calculate Cosine Similarity
         scored_results: List[RetrievalResult] = []

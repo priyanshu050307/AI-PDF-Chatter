@@ -169,4 +169,5 @@ export interface HighlightListResponse {
 }
 
 export * from './tutor';
+export * from './narrative';
 

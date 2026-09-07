@@ -21,6 +21,16 @@ interface ReaderState {
   highlights: HighlightItem[];
   annotationPanelOpen: boolean;
 
+  // Phase 9 Multimodal Elements State
+  elementsPanelOpen: boolean;
+  activeBbox: { x0: number; y0: number; x1: number; y1: number } | null;
+
+  // Phase 10 Narrative Intelligence State
+  characterPanelOpen: boolean;
+
+  // Phase 11 Agentic Reasoning State
+  isAgenticMode: boolean;
+
   setDocumentId: (id: string | null) => void;
   setCurrentPage: (page: number | ((prev: number) => number)) => void;
   nextPage: () => void;
@@ -46,6 +56,19 @@ interface ReaderState {
   setAnnotationPanelOpen: (open: boolean) => void;
   toggleAnnotationPanel: () => void;
 
+  // Multimodal Actions
+  setActiveBbox: (bbox: { x0: number; y0: number; x1: number; y1: number } | null) => void;
+  setElementsPanelOpen: (open: boolean) => void;
+  toggleElementsPanel: () => void;
+
+  // Narrative Intelligence Actions
+  setCharacterPanelOpen: (open: boolean) => void;
+  toggleCharacterPanel: () => void;
+
+  // Agentic AI Actions
+  setAgenticMode: (enabled: boolean) => void;
+  toggleAgenticMode: () => void;
+
   resetReader: () => void;
 }
 
@@ -66,6 +89,13 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
 
   highlights: [],
   annotationPanelOpen: false,
+
+  elementsPanelOpen: false,
+  activeBbox: null,
+
+  characterPanelOpen: false,
+  isAgenticMode: false,
+
 
   setDocumentId: (id) => set({ documentId: id }),
   setCurrentPage: (page) => {
@@ -126,6 +156,16 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   setAnnotationPanelOpen: (open) => set({ annotationPanelOpen: open }),
   toggleAnnotationPanel: () => set((state) => ({ annotationPanelOpen: !state.annotationPanelOpen })),
 
+  setActiveBbox: (bbox) => set({ activeBbox: bbox }),
+  setElementsPanelOpen: (open) => set({ elementsPanelOpen: open }),
+  toggleElementsPanel: () => set((state) => ({ elementsPanelOpen: !state.elementsPanelOpen })),
+
+  setCharacterPanelOpen: (open) => set({ characterPanelOpen: open }),
+  toggleCharacterPanel: () => set((state) => ({ characterPanelOpen: !state.characterPanelOpen })),
+
+  setAgenticMode: (enabled) => set({ isAgenticMode: enabled }),
+  toggleAgenticMode: () => set((state) => ({ isAgenticMode: !state.isAgenticMode })),
+
   resetReader: () =>
     set({
       documentId: null,
@@ -142,5 +182,8 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
       pendingPrompt: null,
       highlights: [],
       annotationPanelOpen: false,
+      characterPanelOpen: false,
+      isAgenticMode: false,
     }),
 }));
+

@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, Loader2, AlertCircle, Sparkles, AlertTriangle, X, FileText, Bookmark, Layers, MessageSquarePlus, History, ChevronUp, Highlighter } from 'lucide-react';
+import { Send, Bot, Loader2, AlertCircle, Sparkles, AlertTriangle, X, FileText, Bookmark, Layers, MessageSquarePlus, History, ChevronUp, Highlighter, Cpu } from 'lucide-react';
 import { DocumentItem, ConversationItem, ChatMessageItem, ContextSnapshot, PaginatedMessagesResponse } from '@/types';
 import { ChatMessageComponent } from './chat-message';
 import { ConversationList } from './conversation-list';
 import { AnnotationPanel } from './annotation-panel';
 import { useReaderStore } from '@/store/readerStore';
+import { agentApi } from '@/services/agentApi';
+
 
 interface ChatPanelProps {
   document: DocumentItem;
@@ -31,6 +33,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ document, token, onNavigat
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const [agentStepText, setAgentStepText] = useState<string | null>(null);
+
   const {
     currentPage,
     activeSelection,
@@ -39,6 +43,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ document, token, onNavigat
     sectionTitle,
     pendingPrompt,
     annotationPanelOpen,
+    isAgenticMode,
+    toggleAgenticMode,
     setAnnotationPanelOpen,
     toggleAnnotationPanel,
     clearSelection,
@@ -46,6 +52,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ document, token, onNavigat
   } = useReaderStore();
 
   const isDocumentReady = document.processing_status === 'COMPLETED';
+
 
   // React to pending prompt from Selection Toolbar actions
   useEffect(() => {
@@ -302,29 +309,51 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ document, token, onNavigat
 
     const activeToken = getAuthToken();
     try {
-      const res = await fetch(
-        `http://localhost:8000/api/v1/conversations/${activeConversation.id}/messages`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${activeToken}`
-          },
-          body: JSON.stringify({
-            content: queryText,
-            context_snapshot: contextSnapshot,
-            intent: activeIntent || 'QUESTION'
-          })
+      if (isAgenticMode) {
+        setAgentStepText('Executing Agentic Multi-Step Investigation...');
+        const agentRes = await agentApi.askAgent(document.id, {
+          query: queryText,
+          conversation_id: activeConversation.id,
+          mode: 'agentic',
+          current_page: currentPage,
+        });
+
+        const assistantMsg: ChatMessageItem = {
+          id: agentRes.run_id,
+          conversation_id: activeConversation.id,
+          sender: 'assistant',
+          content: agentRes.answer,
+          citations: agentRes.citations || [],
+          created_at: new Date().toISOString(),
+        };
+
+        setMessages((prev) => [...prev, assistantMsg]);
+      } else {
+        setAgentStepText(null);
+        const res = await fetch(
+          `http://localhost:8000/api/v1/conversations/${activeConversation.id}/messages`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${activeToken}`
+            },
+            body: JSON.stringify({
+              content: queryText,
+              context_snapshot: contextSnapshot,
+              intent: activeIntent || 'QUESTION'
+            })
+          }
+        );
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error?.message || 'Failed to send message');
         }
-      );
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error?.message || 'Failed to send message');
+        const assistantMsg: ChatMessageItem = await res.json();
+        setMessages((prev) => [...prev, assistantMsg]);
       }
-
-      const assistantMsg: ChatMessageItem = await res.json();
-      setMessages((prev) => [...prev, assistantMsg]);
 
       // Update conversation title in list if it changed
       setConversations((prev) =>
@@ -334,6 +363,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ document, token, onNavigat
       setError(err.message || 'Error sending question');
     } finally {
       setLoading(false);
+      setAgentStepText(null);
     }
   };
 
@@ -509,9 +539,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ document, token, onNavigat
           )}
 
           {loading && (
-            <div className="flex items-center space-x-2 text-xs text-slate-400 p-2">
-              <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
-              <span>Analyzing conversation memory & generating grounded answer...</span>
+            <div className="flex items-center space-x-2 text-xs text-slate-300 p-2.5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl mb-2">
+              <Cpu className="w-4 h-4 animate-spin text-indigo-400 shrink-0" />
+              <span className="font-medium">{agentStepText || 'Analyzing document & generating grounded answer...'}</span>
             </div>
           )}
 
@@ -529,9 +559,29 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ document, token, onNavigat
           </div>
         )}
 
-        {/* Input Form */}
-        <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-800 bg-slate-900/80">
+        {/* Input Form with Deep Analysis Toggle */}
+        <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-800 bg-slate-900/80 space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <button
+              type="button"
+              onClick={toggleAgenticMode}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
+                isAgenticMode
+                  ? 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/50 shadow-sm'
+                  : 'bg-slate-800/80 text-slate-400 hover:text-slate-200 border border-slate-700/80'
+              }`}
+            >
+              <Cpu className="w-3.5 h-3.5" />
+              <span>Deep Analysis (Agentic RAG)</span>
+              {isAgenticMode && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+            </button>
+            <span className="text-[10px] text-slate-500 font-medium">
+              {isAgenticMode ? 'Multi-step investigation' : 'Fast RAG mode'}
+            </span>
+          </div>
+
           <div className="relative flex items-center">
+
             <textarea
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}

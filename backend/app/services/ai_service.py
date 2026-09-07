@@ -303,3 +303,7 @@ def get_ai_service() -> AIService:
     elif provider == "ollama":
         return OllamaAIService(base_url=settings.OLLAMA_BASE_URL, model=settings.LLM_MODEL)
     return MockAIService()
+
+
+get_llm_service = get_ai_service
+

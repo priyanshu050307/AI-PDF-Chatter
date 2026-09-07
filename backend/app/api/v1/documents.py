@@ -37,10 +37,21 @@ async def upload_document(
     db: AsyncSession = Depends(get_async_db)
 ):
     """Upload a PDF file to current user's document library and schedule background processing."""
+    from app.core.config import settings
+
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise ValidationError(message="Only PDF files (.pdf extension) are supported.")
 
     file_bytes = await file.read()
+
+    # File size validation
+    if len(file_bytes) > settings.MAX_UPLOAD_SIZE_BYTES:
+        raise ValidationError(message=f"File size exceeds maximum allowed limit of {settings.MAX_UPLOAD_SIZE_BYTES / (1024*1024):.0f} MB.")
+
+    # Magic Header (%PDF-) & MIME validation
+    if not file_bytes.startswith(b"%PDF-"):
+        raise ValidationError(message="Invalid PDF file. Header signature %PDF- missing or file is corrupted.")
+
     service = DocumentService(db)
     doc_res = await service.upload_document(current_user, file_bytes, file.filename, run_inline_processing=False)
 
@@ -149,3 +160,59 @@ async def debug_retrieval(
         top_k=req.top_k or 5,
         selected_text=req.selected_text
     )
+
+
+@router.get("/{document_id}/elements")
+async def list_document_elements(
+    document_id: uuid.UUID,
+    element_type: str = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Get all extracted multimodal elements (tables, figures, OCR regions) for document."""
+    doc_service = DocumentService(db)
+    await doc_service.get_user_document(current_user, document_id)
+
+    elements = await doc_service.repo.get_elements_for_document(document_id, element_type=element_type)
+    return [
+        {
+            "id": str(elem.id),
+            "document_id": str(elem.document_id),
+            "page_number": elem.page_number,
+            "element_type": elem.element_type,
+            "bbox_json": elem.bbox_json,
+            "content": elem.content,
+            "structured_data": elem.structured_data,
+            "image_storage_key": elem.image_storage_key,
+            "ocr_confidence": elem.ocr_confidence,
+            "created_at": elem.created_at.isoformat()
+        }
+        for elem in elements
+    ]
+
+
+@router.get("/{document_id}/elements/{element_id}/image")
+async def stream_element_image(
+    document_id: uuid.UUID,
+    element_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Stream extracted figure/image asset."""
+    doc_service = DocumentService(db)
+    await doc_service.get_user_document(current_user, document_id)
+
+    elements = await doc_service.repo.get_elements_for_document(document_id)
+    target_elem = next((e for e in elements if e.id == element_id), None)
+    if not target_elem or not target_elem.image_storage_key:
+        raise NotFoundError(message="Extracted image asset not found.")
+
+    storage = doc_service.storage
+    img_bytes = await storage.download(target_elem.image_storage_key)
+
+    return Response(
+        content=img_bytes,
+        media_type="image/png",
+        headers={"Cache-Control": "private, max-age=86400"}
+    )
+

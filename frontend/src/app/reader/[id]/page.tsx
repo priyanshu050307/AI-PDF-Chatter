@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Loader2, AlertCircle, ArrowLeft, MessageSquare, SidebarClose, SidebarOpen, GraduationCap } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, MessageSquare, SidebarClose, SidebarOpen, GraduationCap, Users } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { DocumentItem, ReadingProgress } from '@/types';
 import { useReaderStore } from '@/store/readerStore';
@@ -10,6 +10,7 @@ import { ReaderToolbar } from '@/components/reader/reader-toolbar';
 import { PdfReader } from '@/components/reader/pdf-reader';
 import { ChatPanel } from '@/components/reader/chat-panel';
 import { StudyWorkspace } from '@/components/tutor/study-workspace';
+import { CharacterPanel } from '@/components/reader/character-panel';
 
 
 export default function ReaderPage() {
@@ -25,7 +26,15 @@ export default function ReaderPage() {
   const [sidebarMode, setSidebarMode] = useState<'chat' | 'study'>('chat');
 
 
-  const { currentPage, setDocumentId, setCurrentPage, resetReader } = useReaderStore();
+  const {
+    currentPage,
+    setDocumentId,
+    setCurrentPage,
+    resetReader,
+    characterPanelOpen,
+    setCharacterPanelOpen,
+    toggleCharacterPanel,
+  } = useReaderStore();
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 1. Load Document Metadata & PDF Binary Payload
@@ -201,6 +210,18 @@ export default function ReaderPage() {
             <GraduationCap className="w-4 h-4" />
             <span>AI Study Mode</span>
           </button>
+
+          <button
+            onClick={toggleCharacterPanel}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+              characterPanelOpen
+                ? 'bg-indigo-600/30 border-indigo-500/50 text-indigo-300 hover:bg-indigo-600/50'
+                : 'bg-slate-800 border-slate-700 text-indigo-300 hover:bg-slate-700'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Characters</span>
+          </button>
         </div>
       </div>
 
@@ -225,6 +246,12 @@ export default function ReaderPage() {
             )}
           </div>
         )}
+
+        {/* Phase 10 Character & Narrative Intelligence Panel */}
+        <CharacterPanel
+          isOpen={characterPanelOpen}
+          onClose={() => setCharacterPanelOpen(false)}
+        />
       </main>
     </div>
   );

@@ -262,3 +262,13 @@ async def test_debug_endpoint(client, user_a_headers, db_session):
     assert data["query"] == "debug endpoint test"
     assert "telemetry" in data
     assert "final_evidence" in data
+
+
+@pytest.mark.asyncio
+async def test_query_type_classification(db_session):
+    pipeline = HybridRetrievalPipeline(db_session)
+    assert pipeline.classify_query("What is CVE-2026-1234 vulnerability?") == "technical_identifier"
+    assert pipeline.classify_query("Why is asymmetric encryption slower than symmetric?") == "conceptual"
+    assert pipeline.classify_query("Explain OAuth 2.0 PKCE flow") == "technical_identifier"
+    assert pipeline.classify_query("General document summary") == "general"
+    assert pipeline.classify_query("Explain this", selected_text="Selected paragraph context") == "contextual"

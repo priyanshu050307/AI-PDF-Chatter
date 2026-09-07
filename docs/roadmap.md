@@ -38,11 +38,13 @@
 - **Phase 11 — Agentic PDF Assistant**
   - ReAct multi-step planning agent for complex comparative queries.
 
-- **Phase 12 — Multi-Document Intelligence**
-  - Cross-document retrieval and synthesis across multiple PDF libraries.
+- **Phase 12 — Multi-Document Intelligence** `[COMPLETED]`
+  - Workspaces & collections, document-balanced hybrid retrieval, attributed cross-doc RAG, claim comparison, consensus finding, contradiction engine preserving experimental conditions, 5 multi-doc agent tools, and Research Workspace UI.
 
-- **Phase 13 — Evaluation & AI Quality Engineering**
-  - Benchmarking runner evaluating Recall@K, Faithfulness, latency, and token cost metrics.
 
-- **Phase 14 — Production Engineering & Scalability**
-  - Rate limiting, Redis caching layer, CDN storage integration, and load balancing configurations.
+- **Phase 13 — Evaluation & AI Quality Engineering** `[COMPLETED]`
+  - Unified multi-dimensional evaluation runner, dataset versioning (`retrieval-v1`, `agent-v1`, `narrative-v1`, `multidoc-v1`, `multimodal-v1`, `tutor-v1`, `hallucination-v1`), Quality Gates checks, P50/P95/P99 latency calculations, LLM-as-a-Judge safety, developer CLI (`python -m app.eval`), and Next.js Evaluation Dashboard (`/evaluations`).
+
+
+- **Phase 14 — Production Engineering & Scalability** `[COMPLETED]`
+  - Production multi-stage Docker builds (`Dockerfile.frontend`, `Dockerfile.backend`, `Dockerfile.worker`), Nginx reverse proxy gateway with TLS termination, security headers (`nosniff`, `DENY`, `strict-origin-when-cross-origin`), private boundary protection blocking external exposure of Ollama port 11434, Redis sliding-window rate limiting, correlation ID propagation (`X-Correlation-ID`), strict `%PDF-` magic header file upload validation, untrusted document evidence prompt injection defense, health probes (`/health/liveness`, `/health/readiness`), operational monitoring router (`/api/v1/monitoring/health`), operational runbook (`docs/production-runbook.md`), 69-point readiness audit checklist (`docs/production-readiness-checklist.md`), and Phase 14 test suite (`test_production_hardening.py`).

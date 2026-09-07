@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Loader2, BookOpen, AlertCircle } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
+import { useAuthStore } from '@/store/authStore';
 import { DocumentItem } from '@/types';
 import { DocumentCard } from '@/components/dashboard/document-card';
 import { UploadModal } from '@/components/dashboard/upload-modal';
@@ -11,11 +13,23 @@ import { UploadModal } from '@/components/dashboard/upload-modal';
 export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const router = useRouter();
   const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        router.push('/login');
+      }
+    }
+  }, [router]);
 
   const { data: documents = [], isLoading, isError, error, refetch } = useQuery<DocumentItem[]>({
     queryKey: ['documents'],
     queryFn: () => apiClient.get<DocumentItem[]>('/api/v1/documents'),
+    retry: (failureCount, err: any) => err?.status !== 401 && failureCount < 3,
     refetchInterval: (query) => {
       const data = query.state.data as DocumentItem[] | undefined;
       const hasPendingOrProcessing = data?.some(

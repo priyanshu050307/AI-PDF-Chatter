@@ -4,7 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import setup_logging, logger
 from app.core.errors import AppException, app_exception_handler, unhandled_exception_handler
-from app.api.v1 import health, auth, users, documents, reading_progress, conversations, highlights, tutor
+from app.core.middleware import CorrelationIDMiddleware, SecurityHeadersMiddleware
+from app.api.v1 import health, auth, users, documents, reading_progress, conversations, highlights, tutor, narrative, agent, workspaces, evaluations, monitoring
 
 from app.core.database import Base, engine
 import app.models  # noqa: Ensure all models are registered
@@ -30,6 +31,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Production Security & Correlation Middlewares
+app.add_middleware(CorrelationIDMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+
 # Configure CORS Middleware
 app.add_middleware(
     CORSMiddleware,
@@ -52,4 +57,14 @@ app.include_router(reading_progress.router, prefix="/api/v1/documents", tags=["R
 app.include_router(conversations.router, prefix="/api/v1", tags=["Conversations"])
 app.include_router(highlights.router, prefix="/api/v1", tags=["Highlights"])
 app.include_router(tutor.router, prefix="/api/v1/tutor", tags=["Tutor & Study Mode"])
+app.include_router(narrative.router, prefix="/api/v1", tags=["Narrative & Character Intelligence"])
+app.include_router(agent.router, prefix="/api/v1", tags=["Agentic AI & Multi-Step Reasoning"])
+app.include_router(workspaces.router, prefix="/api/v1", tags=["Workspaces & Multi-Document Intelligence"])
+app.include_router(evaluations.router, prefix="/api/v1", tags=["Unified AI Evaluation & Quality Engineering"])
+app.include_router(monitoring.router, prefix="/api/v1", tags=["Operational Monitoring"])
+
+
+
+
+
 

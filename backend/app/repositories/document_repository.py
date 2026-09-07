@@ -3,7 +3,8 @@ from typing import List, Optional
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.document import Document, DocumentPage, DocumentChunk
+from app.models.document import Document, DocumentPage, DocumentChunk, DocumentElement
+from app.models.entity_graph import Entity, EntityRelationship, NarrativeEvent
 from app.repositories.base import BaseRepository
 
 
@@ -42,7 +43,11 @@ class DocumentRepository(BaseRepository[Document]):
         return False
 
     async def clear_pages_and_chunks(self, document_id: uuid.UUID) -> None:
-        """Idempotency helper: delete existing pages and chunks for a document prior to re-ingestion."""
+        """Idempotency helper: delete existing pages, chunks, elements, entities, relationships, and events prior to re-ingestion."""
+        await self.db.execute(delete(NarrativeEvent).where(NarrativeEvent.document_id == document_id))
+        await self.db.execute(delete(EntityRelationship).where(EntityRelationship.document_id == document_id))
+        await self.db.execute(delete(Entity).where(Entity.document_id == document_id))
+        await self.db.execute(delete(DocumentElement).where(DocumentElement.document_id == document_id))
         await self.db.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document_id))
         await self.db.execute(delete(DocumentPage).where(DocumentPage.document_id == document_id))
         await self.db.flush()
@@ -60,6 +65,22 @@ class DocumentRepository(BaseRepository[Document]):
             batch = chunks[i:i + batch_size]
             self.db.add_all(batch)
             await self.db.flush()
+
+    async def bulk_create_elements(self, elements: List[DocumentElement], batch_size: int = 50) -> None:
+        """Bulk insert DocumentElement entities in batches."""
+        for i in range(0, len(elements), batch_size):
+            batch = elements[i:i + batch_size]
+            self.db.add_all(batch)
+            await self.db.flush()
+
+    async def get_elements_for_document(self, document_id: uuid.UUID, element_type: Optional[str] = None) -> List[DocumentElement]:
+        """Fetch elements for a document with optional element_type filtering."""
+        query = select(DocumentElement).where(DocumentElement.document_id == document_id)
+        if element_type:
+            query = query.where(DocumentElement.element_type == element_type)
+        query = query.order_by(DocumentElement.page_number.asc())
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
 
     async def get_chunks_for_document(self, document_id: uuid.UUID) -> List[DocumentChunk]:
         """Fetch all chunks for a document ordered by page_start."""
@@ -89,3 +110,32 @@ class DocumentRepository(BaseRepository[Document]):
             )
         )
         return list(result.scalars().all())
+
+    async def get_entities_for_document(self, document_id: uuid.UUID) -> List[Entity]:
+        """Fetch all entities for a document."""
+        result = await self.db.execute(
+            select(Entity)
+            .where(Entity.document_id == document_id)
+            .order_by(Entity.first_appeared_page.asc().nulls_last())
+        )
+        return list(result.scalars().all())
+
+    async def get_relationships_for_document(self, document_id: uuid.UUID) -> List[EntityRelationship]:
+        """Fetch all entity relationships for a document."""
+        result = await self.db.execute(
+            select(EntityRelationship)
+            .where(EntityRelationship.document_id == document_id)
+            .order_by(EntityRelationship.observed_page.asc().nulls_last())
+        )
+        return list(result.scalars().all())
+
+    async def get_events_for_document(self, document_id: uuid.UUID) -> List[NarrativeEvent]:
+        """Fetch all narrative events for a document ordered by page_number."""
+        result = await self.db.execute(
+            select(NarrativeEvent)
+            .where(NarrativeEvent.document_id == document_id)
+            .order_by(NarrativeEvent.page_number.asc())
+        )
+        return list(result.scalars().all())
+
+

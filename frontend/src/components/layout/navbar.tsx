@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { FileText, LogOut, User as UserIcon, LayoutDashboard } from 'lucide-react';
+import { FileText, LogOut, User as UserIcon, LayoutDashboard, Layers, BarChart3 } from 'lucide-react';
 
 export function Navbar() {
   const pathname = usePathname();
@@ -24,8 +24,8 @@ export function Navbar() {
               <FileText className="w-6 h-6 text-sky-500" />
               <span>AI PDF Chatter</span>
             </Link>
-            <span className="bg-sky-950 text-sky-400 text-xs px-2 py-0.5 rounded-full border border-sky-800 font-mono">
-              Phase 0 Foundation
+            <span className="bg-indigo-950 text-indigo-400 text-xs px-2 py-0.5 rounded-full border border-indigo-800 font-mono">
+              Phase 13 Quality Eval
             </span>
           </div>
 
@@ -43,10 +43,33 @@ export function Navbar() {
                   <LayoutDashboard className="w-4 h-4" />
                   <span>Dashboard</span>
                 </Link>
+                <Link
+                  href="/workspaces"
+                  className={`flex items-center space-x-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    pathname === '/workspaces'
+                      ? 'bg-indigo-900/50 text-indigo-200 border border-indigo-500/40'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  }`}
+                >
+                  <Layers className="w-4 h-4 text-indigo-400" />
+                  <span>Workspaces</span>
+                </Link>
+                <Link
+                  href="/evaluations"
+                  className={`flex items-center space-x-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    pathname === '/evaluations'
+                      ? 'bg-cyan-900/50 text-cyan-200 border border-cyan-500/40'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4 text-cyan-400" />
+                  <span>Evaluations</span>
+                </Link>
                 <div className="flex items-center space-x-2 text-sm text-slate-300 pl-2 border-l border-slate-800">
                   <UserIcon className="w-4 h-4 text-sky-400" />
                   <span className="font-medium">{user?.full_name || user?.email}</span>
                 </div>
+
                 <button
                   onClick={handleLogout}
                   className="flex items-center space-x-1 px-3 py-1.5 rounded-md text-sm font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 transition-colors"

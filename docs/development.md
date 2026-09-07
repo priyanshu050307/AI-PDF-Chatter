@@ -72,7 +72,7 @@ The system features a decoupled, provider-agnostic AI architecture for both LLM 
 
 *Note: If `LLM_PROVIDER=ollama` or `EMBEDDING_PROVIDER=ollama` is configured but Ollama is offline/unreachable, the backend returns a clear `503 Service Unavailable` error (`AIProviderUnavailableError`). It does NOT silently fall back to mock data.*
 
-### 6. Advanced Retrieval & RAG Quality (Phase 8)
+### 7. Advanced Retrieval & RAG Quality (Phase 8)
 Retrieval configuration parameters in `app/core/config.py`:
 - `DENSE_TOP_K`: Top K vector candidates from pgvector (default: 20).
 - `LEXICAL_TOP_K`: Top K full-text candidates from tsvector (default: 20).
@@ -87,7 +87,59 @@ Run Phase 8 Automated Retrieval Benchmark:
 $env:TESTING="True"; .\venv\Scripts\python.exe -m pytest tests/test_retrieval_benchmark.py -v
 ```
 
-### 7. Frontend Setup
+### 8. Multimodal PDF Intelligence (Phase 9)
+Multimodal PDF configuration parameters in `app/core/config.py`:
+- `OCR_PROVIDER`: Selected OCR implementation (`pymupdf` | `tesseract` | `mock`). Default: `pymupdf`.
+- `OCR_LANGUAGE`: Target OCR language (default: `eng`).
+- `VISION_PROVIDER`: Selected multimodal vision provider (`mock` | `ollama` | `disabled`). Default: `mock`.
+- `VISION_MODEL`: Local vision model name (default: `llava`).
+- `OLLAMA_VISION_BASE_URL`: Endpoint URL for vision provider (default: `http://localhost:11434`).
+
+Run Phase 9 Multimodal Intelligence Test Suite:
+```bash
+$env:TESTING="True"; .\venv\Scripts\python.exe -m pytest tests/test_multimodal_intelligence.py -v
+```
+
+### 10. Multi-Document Intelligence & Research Workspaces (Phase 12)
+Workspace configuration settings in `app/core/config.py`:
+- `ENABLE_MULTI_DOC_WORKSPACE`: Enable/disable multi-document workspace features (default: True).
+- `MAX_DOCUMENTS_PER_WORKSPACE`: Maximum allowed PDFs per research workspace collection (default: 20).
+
+Run Phase 12 Multi-Document Intelligence Test Suite:
+```bash
+$env:TESTING="True"; .\venv\Scripts\python.exe -m pytest tests/test_multi_document_intelligence.py -v
+```
+
+### 11. Unified AI Evaluation CLI & Quality Engineering (Phase 13)
+Run evaluation benchmarks via CLI:
+```bash
+# List benchmark datasets:
+.\venv\Scripts\python.exe -m app.eval list
+
+# Run evaluation benchmark:
+.\venv\Scripts\python.exe -m app.eval run --dataset retrieval-v1 --provider ollama --model qwen3:4b-instruct --output console
+```
+
+Run Phase 13 Evaluation Test Suite:
+```bash
+$env:TESTING="True"; .\venv\Scripts\python.exe -m pytest tests/test_evaluation_framework.py -v
+```
+
+### 13. Production Containerization & Deployment (Phase 14)
+Run production multi-container stack via Docker Compose:
+```bash
+docker-compose -f docker-compose.prod.yml up --build -d
+```
+Inspect operational metrics router:
+```bash
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8000/api/v1/monitoring/health
+```
+Run Phase 14 Production Hardening Test Suite:
+```bash
+$env:TESTING="True"; .\venv\Scripts\python.exe -m pytest tests/test_production_hardening.py -v
+```
+
+### 14. Frontend Setup
 ```bash
 cd frontend
 npm install
@@ -96,5 +148,7 @@ npm run build
 ```
 
 The frontend will be available at `http://localhost:3000` and the API at `http://localhost:8000`.
+
+
 
 

@@ -17,8 +17,11 @@ All error responses follow a standard structure:
 
 ## Endpoints Summary
 
-### System Health
-- **`GET /api/v1/health`**
+### System Health & Operational Monitoring (Phase 14)
+- **`GET /api/v1/health`**: General system health check.
+- **`GET /api/v1/health/liveness`**: Container liveness probe (200 OK).
+- **`GET /api/v1/health/readiness`**: Infrastructure readiness probe (PostgreSQL, Redis).
+- **`GET /api/v1/monitoring/health`**: Operational infrastructure metrics (Uptime, CPU/RAM, DB Pool status, Redis connection status).
 
 ### Authentication
 - **`POST /api/v1/auth/signup`**
@@ -99,5 +102,79 @@ All error responses follow a standard structure:
       }
     }
     ```
+
+### Multimodal PDF Intelligence (Phase 9)
+- **`GET /api/v1/documents/{document_id}/elements`**: List all extracted multimodal elements (tables, figures, OCR regions) for document.
+  - Query Params: `element_type` (`table` | `image` | `ocr_text`).
+  - Response:
+    ```json
+    [
+      {
+        "id": "c1f7a8b2-3d4e-4f5a-6b7c-8d9e0f1a2b3c",
+        "document_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "page_number": 4,
+        "element_type": "table",
+        "bbox_json": {"x0": 50.0, "y0": 100.0, "x1": 500.0, "y1": 300.0},
+        "content": "| Header 1 | Header 2 |\n| --- | --- |\n| Value 1 | Value 2 |",
+        "structured_data": {"headers": ["Header 1", "Header 2"], "rows": [["Value 1", "Value 2"]]},
+        "ocr_confidence": null,
+        "created_at": "2026-09-07T12:00:00Z"
+      }
+    ]
+    ```
+- **`GET /api/v1/documents/{document_id}/elements/{element_id}/image`**: Stream extracted PNG figure asset.
+
+### Character & Narrative Intelligence (Phase 10)
+- **`GET /api/v1/documents/{document_id}/narrative/entities`**: List characters and entities (filters: `importance` = `major` | `minor` | `background`).
+- **`GET /api/v1/documents/{document_id}/narrative/entities/{entity_id}`**: Get character profile, relationship graph, and timeline (query param: `max_page`).
+- **`GET /api/v1/documents/{document_id}/narrative/timeline`**: Get ordered narrative event timeline (query param: `max_page`).
+- **`POST /api/v1/documents/{document_id}/narrative/ask`**: Execute graph RAG answer generation with spoiler control (`spoiler_free`, `current_position`, `full_book`).
+
+### Agentic AI & Multi-Step Reasoning (Phase 11)
+- **`POST /api/v1/documents/{document_id}/agent/ask`**: Execute bounded Agentic AI multi-step document investigation.
+  - Body: `{"query": "Compare Lord Sterling and Lady Eleanor Vance", "mode": "auto", "spoiler_mode": "spoiler_free", "current_page": 5}`
+  - Response:
+    ```json
+    {
+      "run_id": "c1f7a8b2-3d4e-4f5a-6b7c-8d9e0f1a2b3c",
+      "query": "Compare Lord Sterling and Lady Eleanor Vance",
+      "answer": "Grounded comparative synthesis...",
+      "route": "COMPARISON",
+      "state": "COMPLETED",
+      "steps": [
+        {"step": 1, "tool": "compare_entities", "description": "Executed compare_entities", "status": "COMPLETED", "duration_ms": 12.4},
+        {"step": 2, "tool": "search_evidence", "description": "Executed search_evidence", "status": "COMPLETED", "duration_ms": 18.1}
+      ],
+      "citations": [...],
+      "latency_ms": 420.5
+    }
+    ```
+- **`GET /api/v1/documents/{document_id}/agent/runs/{run_id}`**: Retrieve high-level agent run status, operational telemetry, and step trace.
+
+### Multi-Document Intelligence & Research Workspaces (Phase 12)
+- **`GET /api/v1/workspaces`**: List current user's research workspaces.
+- **`POST /api/v1/workspaces`**: Create a new research workspace collection (`title`, `description`).
+- **`GET /api/v1/workspaces/{id}`**: Get workspace details and attached document list.
+- **`DELETE /api/v1/workspaces/{id}`**: Delete workspace container (`204 No Content`).
+- **`POST /api/v1/workspaces/{id}/documents`**: Attach user document to workspace (`document_id`).
+- **`DELETE /api/v1/workspaces/{id}/documents/{document_id}`**: Remove document from workspace collection (`204 No Content`).
+- **`POST /api/v1/workspaces/{id}/query`**: Execute cross-document attributed RAG query across selected workspace PDFs (`query`, `selected_document_ids`).
+- **`POST /api/v1/workspaces/{id}/compare`**: Side-by-side comparative analysis of selected documents on a topic (`topic`, `selected_document_ids`).
+- **`POST /api/v1/workspaces/{id}/agreements`**: Detect common agreed claims across selected documents (`topic`, `selected_document_ids`).
+- **`POST /api/v1/workspaces/{id}/conflicts`**: Detect contradictions across selected documents preserving experimental conditions (`topic`, `selected_document_ids`).
+
+### Unified AI Evaluation & Quality Engineering (Phase 13)
+- **`GET /api/v1/evaluations/datasets`**: List versioned benchmark datasets (`retrieval-v1`, `agent-v1`, `narrative-v1`, `multidoc-v1`, `multimodal-v1`, `tutor-v1`, `hallucination-v1`).
+- **`POST /api/v1/evaluations/run`**: Trigger an async evaluation run (`dataset_version`, `llm_provider`, `llm_model`, `limit`).
+- **`GET /api/v1/evaluations`**: List evaluation runs for user / public benchmarks.
+- **`GET /api/v1/evaluations/{id}`**: Get evaluation run summary, quality gate results, and latency P50/P95/P99.
+- **`GET /api/v1/evaluations/{id}/cases`**: List sample-level debugging cases for an evaluation run (`category`, `passed`).
+- **`GET /api/v1/evaluations/compare`**: Side-by-side comparison of 2 evaluation runs (`run_id_a`, `run_id_b`).
+- **`POST /api/v1/evaluations/cases/{case_id}/review`**: Record human review label (`label`, `notes`).
+- **`GET /api/v1/evaluations/{id}/report`**: Download Markdown or JSON evaluation report (`format`).
+
+
+
+
 
 

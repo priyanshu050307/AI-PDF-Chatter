@@ -3,8 +3,10 @@ from app.models.document import Document, DocumentPage, DocumentChunk, DocumentS
 from app.models.annotation import ReadingProgress, Highlight
 from app.models.conversation import Conversation, ChatMessage, ChatMode
 from app.models.entity_graph import Entity, EntityRelationship
-from app.models.evaluation import EvalRun
+from app.models.evaluation import EvalRun, EvalCaseResult, EvalHumanReview
 from app.models.tutor import StudySession, StudyFlashcard, StudyQuiz, TutorStatus, TutorDifficulty, FlashcardRating
+from app.models.agent import AgentRun, AgentStep
+from app.models.workspace import Workspace, WorkspaceDocument
 
 __all__ = [
     "User",
@@ -20,10 +22,19 @@ __all__ = [
     "Entity",
     "EntityRelationship",
     "EvalRun",
+    "EvalCaseResult",
+    "EvalHumanReview",
     "StudySession",
     "StudyFlashcard",
     "StudyQuiz",
     "TutorStatus",
     "TutorDifficulty",
     "FlashcardRating",
+    "AgentRun",
+    "AgentStep",
+    "Workspace",
+    "WorkspaceDocument",
 ]
+
+
+

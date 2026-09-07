@@ -1,0 +1,135 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: pdfchatter_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - pdfchatter_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pdfchatter_frontend
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost/api/v1
+    networks:
+      - pdfchatter_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pdfchatter_backend
+    restart: always
+    environment:
+      - APP_ENV=production
+      - DEBUG=false
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-pdfuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-pdfpassword}
+      - POSTGRES_DB=${POSTGRES_DB:-pdfchatter}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-pdfuser}:${POSTGRES_PASSWORD:-pdfpassword}@postgres:5432/${POSTGRES_DB:-pdfchatter}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-minio}
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY:-minioadmin}
+      - S3_SECRET_KEY=${S3_SECRET_KEY:-minioadminpassword}
+      - S3_BUCKET_NAME=pdfchatter-documents
+      - LLM_PROVIDER=ollama
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - pdfchatter_net
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: pdfchatter_worker
+    restart: always
+    environment:
+      - APP_ENV=production
+      - POSTGRES_HOST=postgres
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-pdfuser}:${POSTGRES_PASSWORD:-pdfpassword}@postgres:5432/${POSTGRES_DB:-pdfchatter}
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-minio}
+      - S3_ENDPOINT_URL=http://minio:9000
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - pdfchatter_net
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: pdfchatter_postgres_prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pdfuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pdfpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-pdfchatter}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pdfuser} -d ${POSTGRES_DB:-pdfchatter}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    networks:
+      - pdfchatter_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: pdfchatter_redis_prod
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pdfchatter_net
+
+  minio:
+    image: minio/minio:RELEASE.2023-09-04T19-57-37Z
+    container_name: pdfchatter_minio_prod
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadminpassword}
+    volumes:
+      - minio_prod_data:/data
+    networks:
+      - pdfchatter_net
+
+volumes:
+  postgres_prod_data:
+  minio_prod_data:
+
+networks:
+  pdfchatter_net:
+    driver: bridge

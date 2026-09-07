@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_async_db
@@ -23,6 +23,46 @@ async def health_check(db: AsyncSession = Depends(get_async_db)):
         version="1.0.0",
         database=db_status
     )
+
+
+@router.get("/health/liveness")
+async def liveness_probe():
+    """Liveness probe returning 200 OK if the FastAPI process is alive and responsive."""
+    return {"status": "alive", "version": "1.0.0"}
+
+
+@router.get("/health/readiness")
+async def readiness_probe(db: AsyncSession = Depends(get_async_db)):
+    """Readiness probe checking readiness of core infrastructure (PostgreSQL, Redis)."""
+    components = {}
+    is_ready = True
+
+    # 1. Check PostgreSQL
+    try:
+        res = await db.execute(text("SELECT 1"))
+        components["database"] = "ready" if res.scalar() == 1 else "unhealthy"
+    except Exception as e:
+        components["database"] = f"unhealthy: {str(e)}"
+        is_ready = False
+
+    # 2. Check Redis
+    try:
+        from app.core.rate_limit import get_redis_client
+        redis = await get_redis_client()
+        if redis and await redis.ping():
+            components["redis"] = "ready"
+        else:
+            components["redis"] = "unavailable"
+    except Exception as e:
+        components["redis"] = f"unavailable: {str(e)}"
+
+    if not is_ready:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"status": "not_ready", "components": components}
+        )
+
+    return {"status": "ready", "components": components}
 
 
 @router.get("/ai/health")
@@ -50,4 +90,3 @@ async def ai_health_check():
         "embedding_dimension": settings.EMBEDDING_DIMENSION,
         "embedding_health": emb_health,
     }
-

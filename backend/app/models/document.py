@@ -70,6 +70,7 @@ class Document(Base):
     user = relationship("User", back_populates="documents")
     pages = relationship("DocumentPage", back_populates="document", cascade="all, delete-orphan")
     chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
+    elements = relationship("DocumentElement", back_populates="document", cascade="all, delete-orphan")
     reading_progresses = relationship("ReadingProgress", back_populates="document", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="document", cascade="all, delete-orphan")
     highlights = relationship("Highlight", back_populates="document", cascade="all, delete-orphan")
@@ -109,3 +110,27 @@ class DocumentChunk(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     document = relationship("Document", back_populates="chunks")
+
+
+class DocumentElement(Base):
+    __tablename__ = "document_elements"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True)
+    page_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    element_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    bbox_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    structured_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    image_storage_key: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    ocr_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    document = relationship("Document", back_populates="elements")
+
+    __table_args__ = (
+        Index("idx_document_elements_doc_page", "document_id", "page_number"),
+        Index("idx_document_elements_doc_type", "document_id", "element_type"),
+    )
+

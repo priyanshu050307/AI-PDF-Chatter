@@ -40,10 +40,11 @@ class LexicalRetriever:
 
     async def retrieve(
         self,
-        document_id: uuid.UUID,
-        query: Any,
+        document_id: Optional[uuid.UUID] = None,
+        query: Any = None,
         top_k: int = 10,
-        selected_text: Optional[str] = None
+        selected_text: Optional[str] = None,
+        document_ids: Optional[List[uuid.UUID]] = None,
     ) -> List[RetrievalResult]:
         if isinstance(query, list):
             query = ""
@@ -58,20 +59,21 @@ class LexicalRetriever:
         is_postgres = bind.dialect.name == "postgresql"
 
         results: List[RetrievalResult] = []
+        target_doc_ids = document_ids if document_ids else ([document_id] if document_id else [])
 
-        if is_postgres:
+        if is_postgres and target_doc_ids:
             try:
                 # Execute PostgreSQL native tsvector full text search with ts_rank_cd
                 raw_sql = text("""
                     SELECT id, document_id, content, page_start, page_end, chapter_title, section_title, token_count,
                            ts_rank_cd(to_tsvector('english', content), plainto_tsquery('english', :query_text)) AS rank_score
                     FROM document_chunks
-                    WHERE document_id = :doc_id
+                    WHERE document_id = ANY(:doc_ids)
                       AND to_tsvector('english', content) @@ plainto_tsquery('english', :query_text)
                     ORDER BY rank_score DESC
                     LIMIT :top_k
                 """)
-                res = await self.db.execute(raw_sql, {"query_text": clean_query, "doc_id": document_id, "top_k": top_k})
+                res = await self.db.execute(raw_sql, {"query_text": clean_query, "doc_ids": [str(d) for d in target_doc_ids], "top_k": top_k})
                 rows = res.fetchall()
 
                 for row in rows:
@@ -93,12 +95,17 @@ class LexicalRetriever:
                 logger.warning(f"PostgreSQL tsvector query failed, using Python lexical fallback: {exc}")
 
         # In-memory keyword match & Term-Frequency fallback for SQLite test execution
-        res = await self.db.execute(
-            select(DocumentChunk).where(DocumentChunk.document_id == document_id)
-        )
+        stmt = select(DocumentChunk)
+        if document_ids:
+            stmt = stmt.where(DocumentChunk.document_id.in_(document_ids))
+        elif document_id:
+            stmt = stmt.where(DocumentChunk.document_id == document_id)
+
+        res = await self.db.execute(stmt)
         chunks = list(res.scalars().all())
         if not chunks:
             return []
+
 
         # Extract terms (words with length >= 3)
         terms = [t.lower() for t in clean_query.split() if len(t) >= 2]

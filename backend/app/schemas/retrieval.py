@@ -25,12 +25,18 @@ class RetrievalTelemetry(BaseModel):
     """Telemetry logging metadata for advanced retrieval operations."""
     pipeline_version: str = "hybrid-v1"
     query: str
+    query_type: str = "general"
     document_id: str
     dense_candidate_count: int = 0
     lexical_candidate_count: int = 0
     fused_candidate_count: int = 0
     reranked_count: int = 0
     final_count: int = 0
+    reranking_enabled: bool = True
+    reranking_skipped: bool = False
+    embedding_provider: str = "ollama"
+    embedding_model: str = "embeddinggemma"
+    embedding_dimension: int = 768
     dense_latency_ms: float = 0.0
     lexical_latency_ms: float = 0.0
     fusion_latency_ms: float = 0.0

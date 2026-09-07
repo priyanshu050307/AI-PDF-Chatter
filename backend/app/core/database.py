@@ -3,10 +3,12 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import DeclarativeBase
 from app.core.config import settings
 
+from sqlalchemy import event
+
 is_sqlite = settings.DATABASE_URL.startswith("sqlite")
 engine_kwargs = {"echo": settings.DEBUG, "future": True}
 if is_sqlite:
-    engine_kwargs["connect_args"] = {"check_same_thread": False}
+    engine_kwargs["connect_args"] = {"check_same_thread": False, "timeout": 30}
 else:
     engine_kwargs["pool_pre_ping"] = True
 
@@ -14,6 +16,14 @@ engine = create_async_engine(
     settings.DATABASE_URL,
     **engine_kwargs
 )
+
+if is_sqlite:
+    @event.listens_for(engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.close()
 
 # Async session factory
 AsyncSessionLocal = async_sessionmaker(

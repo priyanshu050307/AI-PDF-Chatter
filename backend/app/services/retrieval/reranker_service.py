@@ -155,9 +155,33 @@ class CohereReranker(BaseReranker):
         }
 
 
+class DisabledReranker(BaseReranker):
+    """
+    Pass-through Reranker implementation when reranking is disabled.
+    Preserves input RRF candidate ranking without additional score calculation.
+    """
+
+    async def rerank(
+        self,
+        query: str,
+        candidates: List[RetrievalResult],
+        top_k: int = 5
+    ) -> List[RetrievalResult]:
+        return candidates[:top_k]
+
+    async def health_check(self) -> Dict[str, Any]:
+        return {
+            "available": True,
+            "provider": "disabled",
+            "status": "healthy"
+        }
+
+
 def get_reranker() -> BaseReranker:
     """Factory function to get configured reranker provider."""
     provider = settings.RERANKER_PROVIDER.lower()
     if provider == "cohere":
         return CohereReranker(api_key=settings.COHERE_API_KEY)
+    elif provider == "disabled":
+        return DisabledReranker()
     return MockReranker()

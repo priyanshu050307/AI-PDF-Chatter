@@ -80,6 +80,22 @@ class Settings(BaseSettings):
     RETRIEVAL_MIN_SCORE_THRESHOLD: float = 0.0
     RETRIEVAL_PIPELINE_VERSION: str = "hybrid-v1"
 
+    # Phase 9 Multimodal PDF Intelligence Configuration
+    OCR_PROVIDER: str = "pymupdf"  # "pymupdf", "tesseract", "mock"
+    OCR_LANGUAGE: str = "eng"
+    VISION_PROVIDER: str = "mock"  # "mock", "ollama", "cloud", "disabled"
+    VISION_MODEL: str = "llava"
+    OLLAMA_VISION_BASE_URL: str = "http://localhost:11434"
+
+    # Phase 11 Agentic AI & Multi-Step Reasoning Configuration
+    AGENT_MAX_STEPS: int = 5
+    AGENT_MAX_TOOL_CALLS: int = 6
+    AGENT_TIMEOUT_SECONDS: float = 30.0
+    AGENT_MAX_CONTEXT_TOKENS: int = 4096
+    AGENT_ROUTER_MODE: str = "auto"  # "auto", "always_agentic", "always_normal"
+
+
+
 
     # Phase 4 Context Budget Configuration
     CONTEXT_MAX_SELECTION_TOKENS: int = 500
@@ -106,11 +122,20 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
     COHERE_API_KEY: str = ""
 
+    # Phase 14 Production Rate Limiting & Security Configuration
+    ENABLE_RATE_LIMITING: bool = True
+    RATE_LIMIT_AUTH_MAX: int = 10
+    RATE_LIMIT_UPLOAD_MAX: int = 20
+    RATE_LIMIT_CHAT_MAX: int = 60
+    RATE_LIMIT_AGENT_MAX: int = 20
+    RATE_LIMIT_EVAL_MAX: int = 10
+
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "backend/.env", "../.env"),
         env_file_encoding="utf-8",
         extra="ignore"
     )
+
 
 
 settings = Settings()
