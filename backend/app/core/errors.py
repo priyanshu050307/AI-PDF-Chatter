@@ -64,6 +64,9 @@ import uuid
 from app.core.logging import logger
 
 
+from fastapi.exceptions import RequestValidationError
+
+
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
     """Global handler for custom AppException."""
     return JSONResponse(
@@ -73,6 +76,20 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
                 "code": exc.code,
                 "message": exc.message,
                 "details": exc.details
+            }
+        }
+    )
+
+
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Handler for FastAPI input validation & path parameter parsing errors."""
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Invalid request parameters or payload format.",
+                "details": exc.errors()
             }
         }
     )

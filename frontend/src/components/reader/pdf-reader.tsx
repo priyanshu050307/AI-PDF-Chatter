@@ -8,8 +8,10 @@ import { SelectionToolbar } from './selection-toolbar';
 import { apiService } from '@/services/api';
 import { HighlightColor, HighlightItem } from '@/types';
 
-// Configure pdfjs worker source
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Configure pdfjs worker source safely in browser environment
+if (typeof window !== 'undefined' && pdfjsLib?.GlobalWorkerOptions) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+}
 
 interface PdfReaderProps {
   pdfData: ArrayBuffer;

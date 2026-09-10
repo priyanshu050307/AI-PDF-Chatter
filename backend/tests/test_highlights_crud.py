@@ -176,4 +176,4 @@ async def test_invalid_highlight_input(
             "color": "neon_rainbow"
         }
     )
-    assert res_bad_color.status_code == 422
+    assert res_bad_color.status_code == 400

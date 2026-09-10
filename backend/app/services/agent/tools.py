@@ -68,10 +68,10 @@ class SearchEvidenceTool(BaseAgentTool):
                 "page_start": r.page_start,
                 "page_end": r.page_end,
                 "content": r.content,
-                "chapter_title": r.chapter,
-                "section_title": r.section,
+                "chapter_title": r.chapter_title,
+                "section_title": r.section_title,
                 "score": r.rerank_score or r.fused_score or r.dense_score,
-                "element_type": (r.metadata_json or {}).get("element_type", "text")
+                "element_type": "text"
             }
             for r in results
         ]

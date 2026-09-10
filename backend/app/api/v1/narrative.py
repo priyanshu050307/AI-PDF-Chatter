@@ -131,8 +131,8 @@ async def ask_narrative_question(
     if req.spoiler_mode == "spoiler_free" and req.current_page:
         max_page = req.current_page
     elif req.spoiler_mode == "current_position":
-        if doc.reading_progresses:
-            max_page = max((p.current_page for p in doc.reading_progresses), default=req.current_page)
+        if doc.progress:
+            max_page = doc.progress.current_page
         else:
             max_page = req.current_page
 
@@ -164,8 +164,8 @@ async def ask_narrative_question(
             "page_start": c.page_start,
             "page_end": c.page_end,
             "content": c.content,
-            "chapter_title": c.chapter,
-            "section_title": c.section,
+            "chapter_title": c.chapter_title,
+            "section_title": c.section_title,
             "score": c.rerank_score or c.fused_score or c.dense_score
         }
         for c in retrieved_chunks

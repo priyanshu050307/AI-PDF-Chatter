@@ -11,6 +11,7 @@ import { DocumentCard } from '@/components/dashboard/document-card';
 import { UploadModal } from '@/components/dashboard/upload-modal';
 
 export default function DashboardPage() {
+  const [hasMounted, setHasMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const router = useRouter();
@@ -18,13 +19,17 @@ export default function DashboardPage() {
   const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (hasMounted && typeof window !== 'undefined') {
       const token = localStorage.getItem('access_token');
       if (!token) {
         router.push('/login');
       }
     }
-  }, [router]);
+  }, [hasMounted, router]);
 
   const { data: documents = [], isLoading, isError, error, refetch } = useQuery<DocumentItem[]>({
     queryKey: ['documents'],
@@ -54,6 +59,14 @@ export default function DashboardPage() {
     doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     doc.original_filename.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (!hasMounted) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 text-sky-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">

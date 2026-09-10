@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Navbar } from "@/components/layout/navbar";
 import { useEvalStore } from "@/store/evalStore";
 import {
   Activity,
@@ -78,8 +77,6 @@ export default function EvaluationsPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      <Navbar />
-
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-8 space-y-8">
         {/* Top Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">

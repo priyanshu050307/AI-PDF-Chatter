@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
 import { FileText, Shield, Cpu, Zap, ArrowRight } from 'lucide-react';
 
 export default function Home() {
+  const [hasMounted, setHasMounted] = useState(false);
   const { initialize, isAuthenticated } = useAuthStore();
 
   useEffect(() => {
+    setHasMounted(true);
     initialize();
   }, [initialize]);
 
@@ -16,7 +18,7 @@ export default function Home() {
     <div className="flex-1 flex flex-col items-center justify-center px-4 py-16 text-center bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
       <div className="inline-flex items-center space-x-2 bg-sky-950/60 border border-sky-800/80 rounded-full px-4 py-1.5 mb-8 text-sky-300 text-sm font-mono shadow-inner">
         <Zap className="w-4 h-4 text-sky-400" />
-        <span>Phase 0 Architecture & Foundation Active</span>
+        <span>AI PDF Chatter — Production Release Ready</span>
       </div>
 
       <h1 className="text-4xl sm:text-6xl font-extrabold text-white tracking-tight max-w-4xl leading-tight mb-6">
@@ -28,7 +30,7 @@ export default function Home() {
       </p>
 
       <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mb-16">
-        {isAuthenticated ? (
+        {hasMounted && isAuthenticated ? (
           <Link
             href="/dashboard"
             className="flex items-center justify-center space-x-2 bg-sky-600 hover:bg-sky-500 text-white font-semibold px-8 py-3.5 rounded-xl shadow-lg shadow-sky-950 transition-all hover:scale-105"

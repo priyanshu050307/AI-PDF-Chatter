@@ -3,7 +3,7 @@ import time
 import asyncio
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.core.config import settings
 from app.core.logging import logger

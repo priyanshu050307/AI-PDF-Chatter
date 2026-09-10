@@ -41,7 +41,9 @@ def process_document_task(self, document_id: str) -> Dict[str, Any]:
     logger.info(f"Celery task process_document_task started for document_id={document_id} (Attempt {self.request.retries + 1})")
 
     try:
-        result = asyncio.run(_run_process_document(document_id))
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            result = pool.submit(asyncio.run, _run_process_document(document_id)).result()
         return result
     except (ValidationError, NotFoundError) as val_err:
         # Non-retryable input validation error

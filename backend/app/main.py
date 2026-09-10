@@ -1,9 +1,29 @@
+import sys
+import io
+
+# ─── UTF-8 Safety on Windows ────────────────────────────────────────────────
+# Windows defaults stdout/stderr to cp1252. LLM responses (e.g. qwen3) can
+# contain emoji that crash the process with UnicodeEncodeError and cause HTTP
+# 500s. Re-configure both streams to UTF-8 with 'replace' error handling.
+for _stream_name in ("stdout", "stderr"):
+    _s = getattr(sys, _stream_name)
+    try:
+        setattr(
+            sys,
+            _stream_name,
+            io.TextIOWrapper(_s.buffer, encoding="utf-8", errors="replace", line_buffering=True),
+        )
+    except AttributeError:
+        pass  # Already wrapped or no .buffer attribute (e.g. in test harness)
+# ─────────────────────────────────────────────────────────────────────────────
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from app.core.config import settings
 from app.core.logging import setup_logging, logger
-from app.core.errors import AppException, app_exception_handler, unhandled_exception_handler
+from app.core.errors import AppException, app_exception_handler, validation_exception_handler, unhandled_exception_handler
 from app.core.middleware import CorrelationIDMiddleware, SecurityHeadersMiddleware
 from app.api.v1 import health, auth, users, documents, reading_progress, conversations, highlights, tutor, narrative, agent, workspaces, evaluations, monitoring
 
@@ -11,6 +31,7 @@ from app.core.database import Base, engine
 import app.models  # noqa: Ensure all models are registered
 
 setup_logging()
+
 
 
 @asynccontextmanager
@@ -46,6 +67,7 @@ app.add_middleware(
 
 # Exception handlers
 app.add_exception_handler(AppException, app_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 
 # Mount API V1 routers

@@ -46,32 +46,27 @@ def test_narrative_extractor_entities_aliases_coreference():
         "Lord Edward Sterling arrived in London. He spoke with Lady Eleanor Vance. "
         "Edward Sterling trusts Lady Eleanor."
     )
-    res = extractor.extract(sample_text, page_number=1)
-
-    entities = res["entities"]
-    relationships = res["relationships"]
-    events = res["events"]
+    entities, relationships, events = extractor.extract_entities_and_relationships([(1, sample_text)])
 
     assert len(entities) >= 2
-    entity_names = [e["name"] for e in entities]
+    entity_names = [e.canonical_name for e in entities]
     assert "Lord Edward Sterling" in entity_names or "Edward Sterling" in entity_names
     assert "Lady Eleanor Vance" in entity_names
 
     # Verify relationships
     assert len(relationships) >= 1
-    rel_types = [r["relationship_type"] for r in relationships]
+    rel_types = [r.relationship_type for r in relationships]
     assert "trusts" in rel_types or "knows" in rel_types
 
 
 def test_narrative_extractor_event_creation():
     extractor = NarrativeExtractor()
     sample_text = "Captain Arthur Pendelton confronted Lady Eleanor Vance at the London docks."
-    res = extractor.extract(sample_text, page_number=2)
+    entities, relationships, events = extractor.extract_entities_and_relationships([(2, sample_text)])
 
-    events = res["events"]
     assert len(events) >= 1
-    assert events[0]["page_number"] == 2
-    assert "confronted" in events[0]["description"].lower() or "confronted" in events[0]["title"].lower()
+    assert events[0].page_number == 2
+    assert "confronted" in events[0].description.lower() or "confronted" in events[0].title.lower()
 
 
 @pytest.mark.asyncio
@@ -202,19 +197,17 @@ async def test_narrative_context_builder_formatting():
 
 
 @pytest.mark.asyncio
-async def test_narrative_end_to_end_ingestion_and_api(db_session, async_client, auth_tokens):
+async def test_narrative_end_to_end_ingestion_and_api(db_session, client, user_a_headers):
     pdf_bytes = create_narrative_pdf_bytes()
-
-    token = auth_tokens["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+    headers = user_a_headers
 
     # Upload PDF document
-    response = await async_client.post(
+    response = await client.post(
         "/api/v1/documents/upload",
         files={"file": ("narrative_test.pdf", pdf_bytes, "application/pdf")},
         headers=headers,
     )
-    assert response.status_code == 200
+    assert response.status_code == 201
     doc_data = response.json()
     doc_id = doc_data["id"]
 
@@ -224,7 +217,7 @@ async def test_narrative_end_to_end_ingestion_and_api(db_session, async_client, 
     assert res["status"] == DocumentStatus.COMPLETED
 
     # 1. GET /api/v1/documents/{doc_id}/narrative/entities
-    res_ents = await async_client.get(
+    res_ents = await client.get(
         f"/api/v1/documents/{doc_id}/narrative/entities",
         headers=headers
     )
@@ -236,7 +229,7 @@ async def test_narrative_end_to_end_ingestion_and_api(db_session, async_client, 
     target_entity_id = entities_list[0]["id"]
 
     # 2. GET /api/v1/documents/{doc_id}/narrative/entities/{entity_id}
-    res_prof = await async_client.get(
+    res_prof = await client.get(
         f"/api/v1/documents/{doc_id}/narrative/entities/{target_entity_id}?max_page=1",
         headers=headers
     )
@@ -247,7 +240,7 @@ async def test_narrative_end_to_end_ingestion_and_api(db_session, async_client, 
     assert "events" in prof_data
 
     # 3. GET /api/v1/documents/{doc_id}/narrative/timeline
-    res_timeline = await async_client.get(
+    res_timeline = await client.get(
         f"/api/v1/documents/{doc_id}/narrative/timeline",
         headers=headers
     )
@@ -256,7 +249,7 @@ async def test_narrative_end_to_end_ingestion_and_api(db_session, async_client, 
     assert isinstance(timeline_data, list)
 
     # 4. POST /api/v1/documents/{doc_id}/narrative/ask
-    res_ask = await async_client.post(
+    res_ask = await client.post(
         f"/api/v1/documents/{doc_id}/narrative/ask",
         json={
             "query": "Who is Lord Edward Sterling?",

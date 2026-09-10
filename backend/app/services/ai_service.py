@@ -201,9 +201,11 @@ class OllamaAIService(AIService):
                 )
                 if res.status_code != 200:
                     logger.error(f"Ollama chat error HTTP {res.status_code}: {res.text}")
-                    raise AIProviderUnavailableError(
-                        message=f"Ollama AI provider error HTTP {res.status_code}: {res.text}"
-                    )
+                    return {
+                        "content": f"[AI ERROR] The AI model returned an error (HTTP {res.status_code}). Please check that Ollama is running with the `{self.model}` model loaded (`ollama run {self.model}`).",
+                        "token_usage": {},
+                        "error": True
+                    }
 
                 data = res.json()
                 content = data.get("message", {}).get("content", "")
@@ -219,10 +221,12 @@ class OllamaAIService(AIService):
                     }
                 }
         except (httpx.ConnectError, httpx.TimeoutException, httpx.RequestError) as exc:
-            logger.error(f"Ollama provider connection failed: {exc}")
-            raise AIProviderUnavailableError(
-                message=f"Ollama AI provider is unavailable at {self.base_url}. Please ensure Ollama is installed and running."
-            )
+            logger.warning(f"Ollama provider connection failed: {exc}. Returning graceful error message.")
+            return {
+                "content": f"[AI UNAVAILABLE] The Ollama AI service is currently unreachable at {self.base_url}. Please ensure Ollama is running (`ollama serve`) and the model `{self.model}` is loaded (`ollama pull {self.model}`).",
+                "token_usage": {},
+                "error": True
+            }
 
     async def stream_answer(
         self,

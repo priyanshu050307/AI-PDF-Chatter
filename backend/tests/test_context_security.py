@@ -23,7 +23,7 @@ async def test_context_security_document_mismatch(client: AsyncClient, user_a_he
         processing_status=DocumentStatus.COMPLETED
     )
     db_session.add(doc_a)
-    await db_session.flush()
+    await db_session.commit()
 
     # Create conversation on Document A
     res_conv = await client.post(
@@ -69,7 +69,7 @@ async def test_context_security_invalid_page_number(client: AsyncClient, user_a_
         processing_status=DocumentStatus.COMPLETED
     )
     db_session.add(doc)
-    await db_session.flush()
+    await db_session.commit()
 
     res_conv = await client.post(
         f"/api/v1/documents/{doc_id}/conversations",

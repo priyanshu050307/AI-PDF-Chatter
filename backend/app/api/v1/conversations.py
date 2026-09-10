@@ -167,6 +167,12 @@ async def get_paginated_messages(
     }
 
 
+import asyncio
+from sqlalchemy.exc import OperationalError
+from app.core.errors import AppException, NotFoundError, ValidationError, AIProviderUnavailableError
+from app.core.logging import logger
+
+
 @router.post("/conversations/{conversation_id}/messages", response_model=ChatMessageResponse)
 async def send_message(
     conversation_id: uuid.UUID,
@@ -178,21 +184,52 @@ async def send_message(
         raise ValidationError(message="Message content cannot be empty.")
 
     rag_service = RAGService(db)
-    assistant_msg = await rag_service.execute_rag_completion(
-        current_user=current_user,
-        conversation_id=conversation_id,
-        user_query=body.content.strip(),
-        context_snapshot_req=body.context_snapshot,
-        intent_req=body.intent
-    )
 
-    return {
-        "id": assistant_msg.id,
-        "conversation_id": assistant_msg.conversation_id,
-        "sender": assistant_msg.sender,
-        "content": assistant_msg.content,
-        "citations": assistant_msg.citations or [],
-        "context_snapshot": assistant_msg.context_snapshot or {},
-        "token_usage": assistant_msg.token_usage or {},
-        "created_at": assistant_msg.created_at
-    }
+    # Retry up to 3 times on SQLite database locks
+    for attempt in range(3):
+        try:
+            assistant_msg = await rag_service.execute_rag_completion(
+                current_user=current_user,
+                conversation_id=conversation_id,
+                user_query=body.content.strip(),
+                context_snapshot_req=body.context_snapshot,
+                intent_req=body.intent
+            )
+
+            return {
+                "id": assistant_msg.id,
+                "conversation_id": assistant_msg.conversation_id,
+                "sender": assistant_msg.sender,
+                "content": assistant_msg.content,
+                "citations": assistant_msg.citations or [],
+                "context_snapshot": assistant_msg.context_snapshot or {},
+                "token_usage": assistant_msg.token_usage or {},
+                "created_at": assistant_msg.created_at
+            }
+        except OperationalError as op_err:
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+
+            if attempt == 2:
+                logger.error(f"Database lock error on send_message after 3 attempts: {op_err}")
+                raise AppException(
+                    status_code=503,
+                    message="Database is currently busy processing concurrent requests. Please retry your message."
+                )
+            await asyncio.sleep(0.3 * (2 ** attempt))
+        except (AppException, ValidationError, NotFoundError, AIProviderUnavailableError):
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+            raise
+        except Exception as exc:
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+            logger.error(f"Unexpected error in send_message for conversation {conversation_id}: {exc}", exc_info=True)
+            raise AppException(status_code=500, message=f"Failed to process message: {str(exc)}")
+

@@ -1,0 +1,98 @@
+[
+  {
+    "name": "Document Ownership Isolation",
+    "category": "Authorization",
+    "status": "PASS",
+    "evidence": "User B request for User A doc returned HTTP 404",
+    "risk": "NONE",
+    "fix": "NONE"
+  },
+  {
+    "name": "Conversation Ownership Isolation",
+    "category": "Authorization",
+    "status": "PASS",
+    "evidence": "User B request for User A conv returned HTTP 404",
+    "risk": "NONE",
+    "fix": "NONE"
+  },
+  {
+    "name": "Conversation Deletion Isolation",
+    "category": "Authorization",
+    "status": "PASS",
+    "evidence": "User B delete request returned HTTP 404",
+    "risk": "NONE",
+    "fix": "NONE"
+  },
+  {
+    "name": "Workspace Ownership Isolation",
+    "category": "Authorization",
+    "status": "PASS",
+    "evidence": "User B request for User A workspace returned HTTP 404",
+    "risk": "NONE",
+    "fix": "NONE"
+  },
+  {
+    "name": "Workspace Cross-User Document Attachment Defense",
+    "category": "Authorization",
+    "status": "PASS",
+    "evidence": "User B attaching User A doc returned HTTP 403",
+    "risk": "NONE",
+    "fix": "NONE"
+  },
+  {
+    "name": "PDF Magic Signature Validation (%PDF-)",
+    "category": "Security",
+    "status": "PASS",
+    "evidence": "Rejects non-PDF binary payload with HTTP 400: 'Invalid PDF file. Header signature %PDF- missing or file is corrupted.'",
+    "risk": "NONE",
+    "fix": "NONE"
+  },
+  {
+    "name": "Correlation ID Propagation",
+    "category": "Observability",
+    "status": "PASS",
+    "evidence": "X-Correlation-ID '6849db67-62b3-41e7-a8c1-763b50814a57' propagated in response headers",
+    "risk": "NONE",
+    "fix": "NONE"
+  },
+  {
+    "name": "Production HTTP Security Headers",
+    "category": "Security",
+    "status": "PASS",
+    "evidence": "nosniff, DENY, XSS-Protection, and Referrer-Policy present",
+    "risk": "NONE",
+    "fix": "NONE"
+  },
+  {
+    "name": "Prompt Injection Evidence Sandboxing",
+    "category": "Security & AI Safety",
+    "status": "PASS",
+    "evidence": "System prompt contains UNTRUSTED EVIDENCE security directives isolating document body",
+    "risk": "NONE",
+    "fix": "NONE"
+  },
+  {
+    "name": "Spoiler Protection Boundary Enforcement",
+    "category": "Narrative Security",
+    "status": "PASS",
+    "evidence": "Current reading position max_page=10 correctly capped event retrieval to page 5 (retrieved pages: [5], excluded page 50 secret)",
+    "risk": "NONE",
+    "fix": "NONE"
+  },
+  {
+    "name": "Cascade Document Data Deletion",
+    "category": "Data Retention & Privacy",
+    "status": "PASS",
+    "evidence": "Deleting document bc1b4a9b-ee7d-4410-a26b-73d33628747c completely deleted associated pages (0 left) and chunks (0 left)",
+    "risk": "NONE",
+    "fix": "NONE"
+  },
+  {
+    "name": "Database Connection & Query Execution",
+    "category": "Database Performance",
+    "status": "PASS",
+    "evidence": "SQL ping query executed in 4.53 ms",
+    "risk": "NONE",
+    "fix": "NONE"
+  }
+]

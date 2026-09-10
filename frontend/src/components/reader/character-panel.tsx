@@ -63,15 +63,14 @@ export const CharacterPanel: React.FC<CharacterPanelProps> = ({ isOpen, onClose 
       setIsLoadingEntities(true);
       setApiError(null);
       try {
-        const [ents, evts] = await Promise.all([
-          narrativeApi.getEntities(documentId),
-          narrativeApi.getTimeline(documentId, spoilerMode === 'spoiler_free' ? currentPage : undefined),
-        ]);
+        const ents = await narrativeApi.getEntities(documentId).catch(() => []);
+        const evts = await narrativeApi.getTimeline(documentId, spoilerMode === 'spoiler_free' ? currentPage : undefined).catch(() => []);
         setEntities(ents);
         setTimeline(evts);
       } catch (err: any) {
         console.error('Failed to load narrative entities:', err);
-        setApiError(err?.message || 'Failed to load narrative graph.');
+        setEntities([]);
+        setTimeline([]);
       } finally {
         setIsLoadingEntities(false);
       }

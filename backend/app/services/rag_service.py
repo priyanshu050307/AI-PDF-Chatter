@@ -3,6 +3,7 @@ import uuid
 import asyncio
 from typing import List, Dict, Any, Tuple, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import OperationalError
 
 from app.models.user import User
 from app.models.document import DocumentStatus
@@ -111,18 +112,33 @@ class RAGService:
         )
 
         # 5. Add User Message to Database
-        user_msg = await self.conv_repo.add_message(
-            conversation_id=conversation_id,
-            sender="user",
-            content=user_query
-        )
+        user_msg = None
+        for attempt in range(3):
+            try:
+                user_msg = await self.conv_repo.add_message(
+                    conversation_id=conversation_id,
+                    sender="user",
+                    content=user_query
+                )
+                break
+            except OperationalError:
+                try:
+                    await self.db.rollback()
+                except Exception:
+                    pass
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(0.2 * (2 ** attempt))
 
         # Auto-generate title on first message if default
         if len(existing_messages) == 0 and (conv.title == "Document Chat" or conv.title.startswith("Chat on ")):
             clean_title = user_query.strip()
             if len(clean_title) > 40:
                 clean_title = clean_title[:37] + "..."
-            await self.conv_repo.update_title(conversation_id, current_user.id, clean_title)
+            try:
+                await self.conv_repo.update_title(conversation_id, current_user.id, clean_title)
+            except Exception as title_exc:
+                logger.warning(f"Title auto-generation update failed non-critically: {title_exc}")
 
         # 6. Selection-Aware Vector Retrieval
         t_retrieval_start = time.perf_counter()
@@ -140,7 +156,6 @@ class RAGService:
             from app.repositories.highlight_repository import HighlightRepository
             highlight_repo = HighlightRepository(self.db)
             
-            # Check if query asks about notes/highlights or page context is active
             query_lower = user_query.lower()
             if any(kw in query_lower for kw in ["note", "notes", "highlight", "highlights", "marked", "annotation"]):
                 annotations_db = await highlight_repo.list_highlights(
@@ -188,7 +203,15 @@ class RAGService:
         # 8. LLM Completion
         messages_payload = memory.recent_messages + [{"role": "user", "content": resolved_query}]
         t_llm_start = time.perf_counter()
-        ai_result = await self.ai_service.generate_answer(system_prompt, messages_payload)
+        try:
+            ai_result = await self.ai_service.generate_answer(system_prompt, messages_payload)
+        except Exception as llm_exc:
+            logger.error(f"LLM completion error for conv={conversation_id}: {llm_exc}", exc_info=True)
+            ai_result = {
+                "content": f"[AI ERROR] An error occurred while generating a response: {str(llm_exc)}",
+                "token_usage": {},
+                "error": True
+            }
         t_llm_end = time.perf_counter()
 
         end_time = time.perf_counter()
@@ -200,18 +223,32 @@ class RAGService:
         context_snapshot["retrieval_latency_ms"] = round(retrieval_latency_ms, 2)
         context_snapshot["llm_latency_ms"] = round(llm_latency_ms, 2)
         context_snapshot["total_latency_ms"] = round(total_latency_ms, 2)
+        if ai_result.get("error"):
+            context_snapshot["ai_error"] = True
 
         # 9. Persist Assistant Message
-        assistant_msg = await self.conv_repo.add_message(
-            conversation_id=conversation_id,
-            sender="assistant",
-            content=ai_result["content"],
-            citations=citations,
-            context_snapshot=context_snapshot,
-            token_usage=ai_result.get("token_usage", {})
-        )
+        assistant_msg = None
+        for attempt in range(3):
+            try:
+                assistant_msg = await self.conv_repo.add_message(
+                    conversation_id=conversation_id,
+                    sender="assistant",
+                    content=ai_result["content"],
+                    citations=citations,
+                    context_snapshot=context_snapshot,
+                    token_usage=ai_result.get("token_usage", {})
+                )
+                await self.db.commit()
+                break
+            except OperationalError:
+                try:
+                    await self.db.rollback()
+                except Exception:
+                    pass
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(0.2 * (2 ** attempt))
 
-        await self.db.commit()
 
         # 10. Check if Rolling Summary update is needed
         updated_total_msgs = len(existing_messages) + 2

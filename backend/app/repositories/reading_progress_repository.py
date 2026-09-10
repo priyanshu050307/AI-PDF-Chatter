@@ -47,5 +47,4 @@ class ReadingProgressRepository(BaseRepository[ReadingProgress]):
             self.db.add(progress)
 
         await self.db.flush()
-        await self.db.refresh(progress)
         return progress

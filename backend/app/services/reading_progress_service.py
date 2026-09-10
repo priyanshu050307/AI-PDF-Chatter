@@ -25,7 +25,7 @@ class ReadingProgressService:
         if not doc:
             raise NotFoundError(message="Document not found.")
 
-        if progress_in.current_page > doc.page_count:
+        if doc.page_count > 0 and progress_in.current_page > doc.page_count:
             raise ValidationError(message=f"Current page cannot exceed document total page count ({doc.page_count}).")
 
         progress = await self.progress_repo.upsert_progress(

@@ -9,9 +9,10 @@ from app.core.database import get_async_db
 from app.models.user import User
 from app.models.document import Document
 from app.models.workspace import Workspace, WorkspaceDocument
-from app.api.v1.auth import get_current_user
+from app.api.deps import get_current_user
 from app.services.multi_doc_service import MultiDocService
 from app.services.retrieval.retrieval_pipeline import HybridRetrievalPipeline
+from app.services.context_builder import ContextBuilder, StructuredContext
 from app.services.ai_service import get_ai_service
 from app.services.agent.agent_router import AgentRouter
 from app.core.logging import logger
@@ -326,11 +327,10 @@ async def query_workspace(
             "document_title": d_title,
             "page_start": item.page_start,
             "page_end": item.page_end,
-            "chapter_title": item.chapter,
-            "section_title": item.section,
+            "chapter_title": item.chapter_title,
+            "section_title": item.section_title,
             "content": item.content,
             "score": item.rerank_score or item.fused_score or item.dense_score,
-            "metadata_json": item.metadata_json
         })
 
     context_builder = ContextBuilder()

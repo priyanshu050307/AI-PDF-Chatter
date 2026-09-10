@@ -139,7 +139,6 @@ async def test_document_balanced_hybrid_retrieval(db_session):
     c_a = DocumentChunk(
         id=uuid.uuid4(),
         document_id=doc_a.id,
-        chunk_index=0,
         content="Paper A discusses AES-256 encryption standards and multi-factor authentication (MFA).",
         token_count=15,
         page_start=1,
@@ -149,7 +148,6 @@ async def test_document_balanced_hybrid_retrieval(db_session):
     c_b = DocumentChunk(
         id=uuid.uuid4(),
         document_id=doc_b.id,
-        chunk_index=0,
         content="Paper B discusses ChaCha20 encryption and OAuth 2.0 authentication frameworks.",
         token_count=15,
         page_start=2,
@@ -189,8 +187,8 @@ async def test_multi_doc_service_comparison_agreement_contradiction(db_session):
     doc_b = Document(id=uuid.uuid4(), user_id=user.id, title="Paper B.pdf", original_filename="b.pdf", storage_key="kb", processing_status=DocumentStatus.COMPLETED)
     db_session.add_all([doc_a, doc_b])
 
-    c_a = DocumentChunk(id=uuid.uuid4(), document_id=doc_a.id, chunk_index=0, content="Layered defense reduces attack surface significantly. Benchmark throughput is 10Gbps on 10GbE network.", page_start=1, page_end=1, embedding=[0.2]*768)
-    c_b = DocumentChunk(id=uuid.uuid4(), document_id=doc_b.id, chunk_index=0, content="Layered security controls reduce intrusion risks. Benchmark throughput is 1Gbps on 1GbE cloud environment.", page_start=2, page_end=2, embedding=[0.2]*768)
+    c_a = DocumentChunk(id=uuid.uuid4(), document_id=doc_a.id, content="Layered defense reduces attack surface significantly. Benchmark throughput is 10Gbps on 10GbE network.", page_start=1, page_end=1, embedding=[0.2]*768)
+    c_b = DocumentChunk(id=uuid.uuid4(), document_id=doc_b.id, content="Layered security controls reduce intrusion risks. Benchmark throughput is 1Gbps on 1GbE cloud environment.", page_start=2, page_end=2, embedding=[0.2]*768)
     db_session.add_all([c_a, c_b])
     await db_session.commit()
 
@@ -225,7 +223,7 @@ async def test_multi_document_agent_tools(db_session):
 
     doc_a = Document(id=uuid.uuid4(), user_id=user.id, title="Doc A", original_filename="a.pdf", storage_key="ka", processing_status=DocumentStatus.COMPLETED)
     db_session.add(doc_a)
-    c_a = DocumentChunk(id=uuid.uuid4(), document_id=doc_a.id, chunk_index=0, content="OAuth 2.0 security token validation.", page_start=1, page_end=1, embedding=[0.3]*768)
+    c_a = DocumentChunk(id=uuid.uuid4(), document_id=doc_a.id, content="OAuth 2.0 security token validation.", page_start=1, page_end=1, embedding=[0.3]*768)
     db_session.add(c_a)
     await db_session.commit()
 

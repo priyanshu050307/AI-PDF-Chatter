@@ -131,7 +131,29 @@ def test_coreference_resolution_and_ambiguity_fallback():
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_relationship_temporality_non_overwriting_history(db_session):
+    user = User(
+        id=uuid.uuid4(),
+        email="rel_user@example.com",
+        password_hash=get_password_hash("Password123!"),
+        full_name="Rel User"
+    )
+    db_session.add(user)
+    await db_session.commit()
+
     doc_id = uuid.uuid4()
+    doc_obj = Document(
+        id=doc_id,
+        user_id=user.id,
+        title="rel_doc.pdf",
+        original_filename="rel_doc.pdf",
+        storage_key="rel_doc_key",
+        file_size_bytes=100,
+        processing_status=DocumentStatus.COMPLETED,
+        page_count=120
+    )
+    db_session.add(doc_obj)
+    await db_session.commit()
+
     e1 = Entity(id=uuid.uuid4(), document_id=doc_id, name="Alice Vance", entity_type="PERSON", first_appeared_page=20)
     e2 = Entity(id=uuid.uuid4(), document_id=doc_id, name="Bob Sterling", entity_type="PERSON", first_appeared_page=20)
     db_session.add_all([e1, e2])
@@ -195,8 +217,28 @@ def test_event_extraction_precision_recall_f1():
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_spoiler_security_across_graph_and_llm_context(db_session):
+    user = User(
+        id=uuid.uuid4(),
+        email="spoiler_user@example.com",
+        password_hash=get_password_hash("Password123!"),
+        full_name="Spoiler User"
+    )
+    db_session.add(user)
+    await db_session.commit()
+
     doc_id = uuid.uuid4()
-    sample = GOLD_NARRATIVE_DATASET[7]  # sample_8_spoiler_protection
+    doc_obj = Document(
+        id=doc_id,
+        user_id=user.id,
+        title="spoiler_doc.pdf",
+        original_filename="spoiler_doc.pdf",
+        storage_key="spoiler_doc_key",
+        file_size_bytes=100,
+        processing_status=DocumentStatus.COMPLETED,
+        page_count=200
+    )
+    db_session.add(doc_obj)
+    await db_session.commit()
 
     e1 = Entity(id=uuid.uuid4(), document_id=doc_id, name="Lord Sterling", entity_type="PERSON", first_appeared_page=40)
     e2 = Entity(id=uuid.uuid4(), document_id=doc_id, name="Lady Eleanor Vance", entity_type="PERSON", first_appeared_page=200)
@@ -368,32 +410,31 @@ async def test_large_novel_scalability_and_batch_processing(db_session):
 # Step 22: Multi-Tenant Security Isolation Test
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_multi_tenant_security_isolation(db_session, async_client, auth_tokens):
-    # User A (auth_tokens) uploads a document
+async def test_multi_tenant_security_isolation(db_session, client, user_a_headers):
+    # User A (user_a_headers) uploads a document
     pdf_bytes = create_300_page_novel_pdf_bytes()
-    token_a = auth_tokens["access_token"]
-    headers_a = {"Authorization": f"Bearer {token_a}"}
+    headers_a = user_a_headers
 
-    res_upload = await async_client.post(
+    res_upload = await client.post(
         "/api/v1/documents/upload",
         files={"file": ("sec_doc.pdf", pdf_bytes, "application/pdf")},
         headers=headers_a
     )
-    assert res_upload.status_code == 200
+    assert res_upload.status_code == 201
     doc_id = res_upload.json()["id"]
 
     # Register User B
     user_b_email = f"user_b_{uuid.uuid4().hex[:6]}@example.com"
-    res_signup = await async_client.post(
+    res_signup = await client.post(
         "/api/v1/auth/signup",
         json={"email": user_b_email, "password": "Password123!", "full_name": "User B"}
     )
-    assert res_signup.status_code == 200
+    assert res_signup.status_code == 201
     token_b = res_signup.json()["access_token"]
     headers_b = {"Authorization": f"Bearer {token_b}"}
 
     # User B attempts to query User A's narrative entities endpoint
-    res_sec_entities = await async_client.get(
+    res_sec_entities = await client.get(
         f"/api/v1/documents/{doc_id}/narrative/entities",
         headers=headers_b
     )
@@ -401,7 +442,7 @@ async def test_multi_tenant_security_isolation(db_session, async_client, auth_to
     assert res_sec_entities.status_code in [403, 404]
 
     # User B attempts to query User A's narrative ask endpoint
-    res_sec_ask = await async_client.post(
+    res_sec_ask = await client.post(
         f"/api/v1/documents/{doc_id}/narrative/ask",
         json={"query": "Who is Lord Sterling?", "spoiler_mode": "spoiler_free"},
         headers=headers_b

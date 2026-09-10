@@ -22,7 +22,7 @@ class BaseRepository(Generic[ModelType]):
 
     async def create(self, obj_in: ModelType) -> ModelType:
         self.db.add(obj_in)
-        await self.db.flush()
+        await self.db.commit()
         await self.db.refresh(obj_in)
         return obj_in
 

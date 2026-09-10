@@ -16,19 +16,33 @@ class EntityRetriever:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def find_matching_entities(self, document_id: uuid.UUID, query: str) -> List[Entity]:
-        """Match query terms against canonical entity names and aliases."""
+    async def find_matching_entities(
+        self,
+        document_id: uuid.UUID,
+        query: str,
+        max_page: Optional[int] = None
+    ) -> List[Entity]:
+        """Match query terms against canonical entity names and aliases with spoiler safety."""
         q_lower = query.lower()
-        res = await self.db.execute(
-            select(Entity).where(Entity.document_id == document_id)
-        )
+        stmt = select(Entity).where(Entity.document_id == document_id)
+        if max_page is not None:
+            stmt = stmt.where((Entity.first_appeared_page == None) | (Entity.first_appeared_page <= max_page))
+        res = await self.db.execute(stmt)
         entities = list(res.scalars().all())
 
         matched = []
+        q_tokens = [t for t in q_lower.split() if len(t) >= 3]
         for e in entities:
             c_name = e.name.lower()
             aliases = [a.lower() for a in e.attributes.get("aliases", [])] if e.attributes else []
-            if c_name in q_lower or any(a in q_lower for a in aliases if len(a) > 2):
+            
+            # Exact or substring match (either direction) or token overlap match
+            is_match = (
+                c_name in q_lower or q_lower in c_name
+                or any(t in c_name for t in q_tokens)
+                or any(a in q_lower or q_lower in a for a in aliases if len(a) > 2)
+            )
+            if is_match:
                 matched.append(e)
 
         return matched
@@ -44,7 +58,7 @@ class EntityRetriever:
         Perform bounded 1-hop / 2-hop graph traversal starting from matched query entities.
         Applies Spoiler Protection if max_page is specified.
         """
-        matched_entities = await self.find_matching_entities(document_id, query)
+        matched_entities = await self.find_matching_entities(document_id, query, max_page=max_page)
         if not matched_entities:
             return {"entities": [], "relationships": [], "events": []}
 
@@ -53,6 +67,7 @@ class EntityRetriever:
         frontier_ids = set(visited_entity_ids)
 
         relationships_found: List[Dict[str, Any]] = []
+        seen_relationship_ids: Set[str] = set()
 
         # 1-hop and 2-hop relationship expansion
         for hop in range(min(max_hops, 3)):
@@ -73,17 +88,20 @@ class EntityRetriever:
 
             next_frontier = set()
             for r in rels:
+                r_id_str = str(r.id)
                 src_id = r.source_entity_id
                 tgt_id = r.target_entity_id
-                
-                relationships_found.append({
-                    "id": str(r.id),
-                    "source_entity_id": str(src_id),
-                    "target_entity_id": str(tgt_id),
-                    "relationship_type": r.relationship_type,
-                    "description": r.description,
-                    "observed_page": r.observed_page
-                })
+
+                if r_id_str not in seen_relationship_ids:
+                    seen_relationship_ids.add(r_id_str)
+                    relationships_found.append({
+                        "id": r_id_str,
+                        "source_entity_id": str(src_id),
+                        "target_entity_id": str(tgt_id),
+                        "relationship_type": r.relationship_type,
+                        "description": r.description,
+                        "observed_page": r.observed_page
+                    })
 
                 if src_id not in visited_entity_ids:
                     next_frontier.add(src_id)

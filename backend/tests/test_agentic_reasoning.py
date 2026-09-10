@@ -212,7 +212,7 @@ async def test_agent_security_isolation(client, user_a_headers, user_b_headers):
         files={"file": ("sec_agent_doc.pdf", pdf_bytes, "application/pdf")},
         headers=user_a_headers
     )
-    assert res_upload.status_code == 200
+    assert res_upload.status_code == 201
     doc_id = res_upload.json()["id"]
 
     # User B attempts to trigger Agentic Investigation on User A's document

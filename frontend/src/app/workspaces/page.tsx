@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { useWorkspaceStore } from "@/store/workspaceStore";
-import { Navbar } from "@/components/layout/navbar";
 import {
   FolderPlus,
   FileText,
@@ -42,6 +41,7 @@ export default function WorkspacesPage() {
     toggleDeepAnalysis,
   } = useWorkspaceStore();
 
+  const [hasMounted, setHasMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"chat" | "compare" | "matrix">("chat");
   const [queryInput, setQueryInput] = useState("");
   const [newWsTitle, setNewWsTitle] = useState("");
@@ -50,8 +50,14 @@ export default function WorkspacesPage() {
   const [comparisonTopic, setComparisonTopic] = useState("");
 
   useEffect(() => {
-    fetchWorkspaces();
-  }, [fetchWorkspaces]);
+    setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (hasMounted) {
+      fetchWorkspaces();
+    }
+  }, [hasMounted, fetchWorkspaces]);
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,8 +84,6 @@ export default function WorkspacesPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      <Navbar />
-
       <main className="flex-1 flex overflow-hidden h-[calc(100vh-64px)]">
 
         {/* Left Sidebar — Workspaces & Document Selection */}

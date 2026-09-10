@@ -1,5 +1,6 @@
 """FastAPI router for Phase 13 Unified Evaluation & Quality Engineering endpoints."""
 
+import json
 import uuid
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -8,7 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_db
-from app.api.v1.auth import get_current_user
+from app.api.deps import get_current_user
 from app.models.user import User
 from app.services.eval_service import EvalService
 from app.eval.datasets import list_datasets
@@ -153,7 +154,7 @@ async def submit_human_review(
 @router.get("/{id}/report", summary="Download evaluation run report")
 async def download_evaluation_report(
     id: uuid.UUID,
-    format: str = Query("markdown", regex="^(markdown|json)$"),
+    format: str = Query("markdown", pattern="^(markdown|json)$"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db)
 ):
